@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 
 const MortgageCalc = () => {
   const [loanAmount, setLoanAmount] = useState(
@@ -29,6 +30,10 @@ const MortgageCalc = () => {
   );
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountStillOwed, setAmountStillOwed] = useState(0);
+  const [monthsPaid, setMonthsPaid] = useState(0);
+  const [yearsPaid, setYearsPaid] = useState(0);
+  const [monthsRemaining, setMonthsRemaining] = useState(0);
+  const [yearsRemaining, setYearsRemaining] = useState(0);
 
   const calculateMonthlyPayment = () => {
     const principal = parseFloat(loanAmount);
@@ -76,9 +81,24 @@ const MortgageCalc = () => {
 
       setAmountPaid(totalPaid.toFixed(2));
       setAmountStillOwed(remainingBalance.toFixed(2));
+
+      // Calculate months/years paid and remaining
+      const yearsPaid = Math.floor(monthsElapsed / 12);
+      const monthsPaid = monthsElapsed % 12;
+      setYearsPaid(yearsPaid);
+      setMonthsPaid(monthsPaid);
+
+      const yearsRemaining = Math.floor((totalPayments - monthsElapsed) / 12);
+      const monthsRemaining = (totalPayments - monthsElapsed) % 12;
+      setYearsRemaining(yearsRemaining);
+      setMonthsRemaining(monthsRemaining);
     } else {
       setAmountPaid(0);
       setAmountStillOwed(0);
+      setYearsPaid(0);
+      setMonthsPaid(0);
+      setYearsRemaining(0);
+      setMonthsRemaining(0);
     }
   };
 
@@ -90,6 +110,10 @@ const MortgageCalc = () => {
     setStartDate(new Date());
     setAmountPaid(0);
     setAmountStillOwed(0);
+    setYearsPaid(0);
+    setMonthsPaid(0);
+    setYearsRemaining(0);
+    setMonthsRemaining(0);
 
     // Clear local storage
     localStorage.removeItem("loanAmount");
@@ -124,8 +148,11 @@ const MortgageCalc = () => {
   }, [loanAmount, loanTerm, interestRate, startDate]);
 
   return (
-    <div className="p-4 flex gap-2">
-      <div className="p-4 flex flex-col gap-2">
+    <div className="p-4 flex flex-col gap-1 items-center">
+      <div className="p-4 flex flex-col gap-1 items-center">
+        <Button onClick={clearAllFields} className="w-[100px] p-1 flex gap-1">
+          <X size={15} /> Clear All
+        </Button>
         <div className="flex flex-col pt-2 gap-1">
           <Label className="pl-2 text-xs">Loan Amount</Label>
           <Input
@@ -190,8 +217,25 @@ const MortgageCalc = () => {
             disabled
           />
         </div>
+
+        <div className="pt-2">
+          <Label className="pl-2 text-xs">Months Paid</Label>
+          <Input
+            value={`${yearsPaid} years ${monthsPaid} months`}
+            className="h-[25px] w-[300px]"
+            disabled
+          />
+        </div>
+
+        <div className="pt-2">
+          <Label className="pl-2 text-xs">Months Remaining</Label>
+          <Input
+            value={`${yearsRemaining} years ${monthsRemaining} months`}
+            className="h-[25px] w-[300px]"
+            disabled
+          />
+        </div>
       </div>
-      <Button onClick={clearAllFields}>Clear All</Button>
     </div>
   );
 };
