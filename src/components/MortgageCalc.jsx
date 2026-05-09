@@ -1,6 +1,11 @@
+"use client";
+import { useState, useEffect } from "react";
+import { X, CalendarIcon } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+
 import {
   Select,
   SelectContent,
@@ -8,25 +13,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { Calendar } from "@/components/ui/calendar";
-import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 const MortgageCalc = () => {
   const [loanAmount, setLoanAmount] = useState(
-    localStorage.getItem("loanAmount") || ""
+    localStorage.getItem("loanAmount") || "",
   );
   const [loanTerm, setLoanTerm] = useState(
-    localStorage.getItem("loanTerm") || ""
-  ); // State for loan term in years
+    localStorage.getItem("loanTerm") || "",
+  );
+
   const [interestRate, setInterestRate] = useState(
-    localStorage.getItem("interestRate") || ""
-  ); // State for interest rate in percentage
+    localStorage.getItem("interestRate") || "",
+  );
+
   const [monthlyPayment, setMonthlyPayment] = useState(0);
   const [startDate, setStartDate] = useState(
-    localStorage?.getItem("startDate")
+    localStorage.getItem("startDate")
       ? new Date(localStorage.getItem("startDate"))
-      : undefined
+      : new Date("2023-05-01"),
   );
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountStillOwed, setAmountStillOwed] = useState(0);
@@ -34,64 +46,87 @@ const MortgageCalc = () => {
   const [yearsPaid, setYearsPaid] = useState(0);
   const [monthsRemaining, setMonthsRemaining] = useState(0);
   const [yearsRemaining, setYearsRemaining] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(startDate);
+
+  function formatDate(date) {
+    if (!date) return "";
+
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  }
+
+  function isValidDate(date) {
+    if (!date) return false;
+
+    return !isNaN(date.getTime());
+  }
+
+  const [dateValue, setDateValue] = useState(formatDate(startDate));
 
   const calculateMonthlyPayment = () => {
     const principal = parseFloat(loanAmount);
-    const termInMonths = parseInt(loanTerm) * 12; // Loan term in months
-    const rate = parseFloat(interestRate) / 100 / 12; // Monthly interest rate
+    const termInMonths = parseInt(loanTerm) * 12;
+    const rate = parseFloat(interestRate) / 100 / 12;
 
     if (principal && termInMonths && !isNaN(rate)) {
-      let monthlyPayment;
-
+      let payment = 0;
       if (rate === 0) {
-        monthlyPayment = principal / termInMonths;
+        payment = principal / termInMonths;
       } else {
-        monthlyPayment =
-          (principal * rate) / (1 - Math.pow(1 + rate, -termInMonths));
+        payment = (principal * rate) / (1 - Math.pow(1 + rate, -termInMonths));
       }
-
-      setMonthlyPayment(monthlyPayment.toFixed(2));
+      setMonthlyPayment(payment.toFixed(2));
     } else {
       setMonthlyPayment(0);
     }
   };
 
   const calculateAmountPaidAndStillOwed = () => {
+    if (!startDate) return;
+
     const today = new Date();
     const monthsElapsed =
       (today.getFullYear() - startDate.getFullYear()) * 12 +
       (today.getMonth() - startDate.getMonth());
     const totalPayments = parseInt(loanTerm) * 12;
     const principal = parseFloat(loanAmount);
-    const rate = parseFloat(interestRate) / 100 / 12; // Monthly interest rate
+    const rate = parseFloat(interestRate) / 100 / 12;
 
     if (principal && totalPayments && monthsElapsed >= 0 && !isNaN(rate)) {
-      let totalPaid = 0;
-
-      // Calculate total paid
+      let payment = 0;
+      let remainingBalance = 0;
       if (rate === 0) {
-        totalPaid = monthsElapsed * (principal / totalPayments);
+        payment = principal / totalPayments;
+        const principalPaid = payment * monthsElapsed;
+        remainingBalance = principal - principalPaid;
+        setAmountPaid(principalPaid.toFixed(2));
+        setAmountStillOwed(Math.max(remainingBalance, 0).toFixed(2));
       } else {
-        totalPaid =
-          (principal * rate) / (1 - Math.pow(1 + rate, -totalPayments));
+        payment = (principal * rate) / (1 - Math.pow(1 + rate, -totalPayments));
+        remainingBalance =
+          principal * Math.pow(1 + rate, monthsElapsed) -
+          payment * ((Math.pow(1 + rate, monthsElapsed) - 1) / rate);
+        const totalPaid = payment * monthsElapsed;
+        setAmountPaid(totalPaid.toFixed(2));
+        setAmountStillOwed(Math.max(remainingBalance, 0).toFixed(2));
       }
 
-      // Calculate remaining balance
-      const remainingBalance = principal - totalPaid;
+      const paidYears = Math.floor(monthsElapsed / 12);
+      const paidMonths = monthsElapsed % 12;
 
-      setAmountPaid(totalPaid.toFixed(2));
-      setAmountStillOwed(remainingBalance.toFixed(2));
+      setYearsPaid(paidYears);
+      setMonthsPaid(paidMonths);
 
-      // Calculate months/years paid and remaining
-      const yearsPaid = Math.floor(monthsElapsed / 12);
-      const monthsPaid = monthsElapsed % 12;
-      setYearsPaid(yearsPaid);
-      setMonthsPaid(monthsPaid);
+      const remainingMonths = Math.max(totalPayments - monthsElapsed, 0);
+      const remainYears = Math.floor(remainingMonths / 12);
+      const remainMonths = remainingMonths % 12;
 
-      const yearsRemaining = Math.floor((totalPayments - monthsElapsed) / 12);
-      const monthsRemaining = (totalPayments - monthsElapsed) % 12;
-      setYearsRemaining(yearsRemaining);
-      setMonthsRemaining(monthsRemaining);
+      setYearsRemaining(remainYears);
+      setMonthsRemaining(remainMonths);
     } else {
       setAmountPaid(0);
       setAmountStillOwed(0);
@@ -107,7 +142,8 @@ const MortgageCalc = () => {
     setLoanTerm("");
     setInterestRate("");
     setMonthlyPayment(0);
-    setStartDate(new Date());
+    setStartDate(undefined);
+    setDateValue("");
     setAmountPaid(0);
     setAmountStillOwed(0);
     setYearsPaid(0);
@@ -115,7 +151,6 @@ const MortgageCalc = () => {
     setYearsRemaining(0);
     setMonthsRemaining(0);
 
-    // Clear local storage
     localStorage.removeItem("loanAmount");
     localStorage.removeItem("loanTerm");
     localStorage.removeItem("interestRate");
@@ -127,23 +162,18 @@ const MortgageCalc = () => {
   }, [loanAmount, loanTerm, interestRate]);
 
   useEffect(() => {
-    if (startDate) {
-      calculateAmountPaidAndStillOwed();
-    } else {
-      setAmountPaid("0");
-      setAmountStillOwed("0");
-    }
-  }, [startDate, interestRate]);
+    calculateAmountPaidAndStillOwed();
+  }, [startDate, loanAmount, loanTerm, interestRate]);
 
   useEffect(() => {
-    // Save to local storage whenever loanAmount, loanTerm, interestRate, or startDate changes
     localStorage.setItem("loanAmount", loanAmount);
     localStorage.setItem("loanTerm", loanTerm);
     localStorage.setItem("interestRate", interestRate);
+
     if (startDate && !isNaN(startDate.getTime())) {
       localStorage.setItem("startDate", startDate.toISOString());
     } else {
-      localStorage.removeItem("startDate"); // Clear the item if startDate is invalid or null
+      localStorage.removeItem("startDate");
     }
   }, [loanAmount, loanTerm, interestRate, startDate]);
 
@@ -151,7 +181,8 @@ const MortgageCalc = () => {
     <div className="p-4 flex flex-col gap-1 items-center">
       <div className="p-4 flex flex-col gap-1 items-center">
         <Button onClick={clearAllFields} className="w-[100px] p-1 flex gap-1">
-          <X size={15} /> Clear All
+          <X size={15} />
+          Clear All
         </Button>
         <div className="flex flex-col pt-2 gap-1">
           <Label className="pl-2 text-xs">Loan Amount</Label>
@@ -196,13 +227,51 @@ const MortgageCalc = () => {
         </div>
       </div>
       <div className="flex flex-col items-center w-[300px]">
-        <Label>Start Date</Label>
-        <Calendar
-          mode="single"
-          selected={startDate}
-          onSelect={setStartDate}
-          defaultMonth={startDate || new Date()}
-        />
+        <Label className="pb-2">Start Date</Label>
+        <div className="relative w-[300px]">
+          <Input
+            value={dateValue}
+            placeholder="June 01, 2025"
+            className="h-[25px] pr-8"
+            onChange={(e) => {
+              const date = new Date(e.target.value);
+              setDateValue(e.target.value);
+              if (isValidDate(date)) {
+                setStartDate(date);
+                setMonth(date);
+              }
+            }}
+          />
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Select date"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <CalendarIcon size={14} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto overflow-hidden p-0"
+              align="end"
+              alignOffset={-8}
+              sideOffset={10}
+            >
+              <Calendar
+                mode="single"
+                selected={startDate}
+                month={month}
+                onMonthChange={setMonth}
+                onSelect={(date) => {
+                  setStartDate(date);
+                  setDateValue(formatDate(date));
+                  setOpen(false);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <div className="pt-2">
           <Label className="pl-2 text-xs">Amount Paid</Label>
@@ -219,7 +288,8 @@ const MortgageCalc = () => {
         </div>
 
         <div className="pt-2">
-          <Label className="pl-2 text-xs">Months Paid</Label>
+          <Label className="pl-2 text-xs">Time Paid</Label>
+
           <Input
             value={`${yearsPaid} years ${monthsPaid} months`}
             className="h-[25px] w-[300px]"
@@ -228,7 +298,8 @@ const MortgageCalc = () => {
         </div>
 
         <div className="pt-2">
-          <Label className="pl-2 text-xs">Months Remaining</Label>
+          <Label className="pl-2 text-xs">Time Remaining</Label>
+
           <Input
             value={`${yearsRemaining} years ${monthsRemaining} months`}
             className="h-[25px] w-[300px]"
