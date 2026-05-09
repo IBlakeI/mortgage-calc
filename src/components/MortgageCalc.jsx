@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect } from "react";
 import { X, CalendarIcon } from "lucide-react";
 
@@ -38,7 +37,7 @@ const MortgageCalc = () => {
   const [startDate, setStartDate] = useState(
     localStorage.getItem("startDate")
       ? new Date(localStorage.getItem("startDate"))
-      : new Date("2023-05-01"),
+      : new Date(2023, 4, 1),
   );
   const [amountPaid, setAmountPaid] = useState(0);
   const [amountStillOwed, setAmountStillOwed] = useState(0);
@@ -231,7 +230,7 @@ const MortgageCalc = () => {
         <div className="relative w-[300px]">
           <Input
             value={dateValue}
-            placeholder="June 01, 2025"
+            placeholder="May 01, 2023"
             className="h-[25px] pr-8"
             onChange={(e) => {
               const date = new Date(e.target.value);
